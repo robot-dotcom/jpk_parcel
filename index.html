@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parcel Tracker Pro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4361ee;
+      --secondary: #3f37c9;
+      --success: #4cc9f0;
+      --danger: #f72585;
+      --excel: #217346;
+      --import: #6f42c1;
+      --light: #f8f9fa;
+      --dark: #212529;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+    }
+    
+    body {
+      background-color: #f5f7ff;
+      color: var(--dark);
+      line-height: 1.6;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 500;
+    }
+    
+    .form-container {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    .input-group {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.3s;
+      min-width: 120px;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .btn-success {
+      background-color: var(--success);
+    }
+    
+    .btn-danger {
+      background-color: var(--danger);
+    }
+    
+    .btn-excel {
+      background-color: var(--excel);
+    }
+    
+    .btn-import {
+      background-color: var(--import);
+    }
+    
+    .table-container {
+      padding: 20px;
+      overflow-x: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    th {
+      background-color: #f8f9fa;
+      position: sticky;
+      top: 0;
+      font-weight: 500;
+    }
+    
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    
+    tr:last-child td {
+      border-bottom: none;
+    }
+    
+    tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    
+    .status-waiting {
+      background-color: #fff3bf;
+      color: #e67700;
+    }
+    
+    .status-taken {
+      background-color: #d3f9d8;
+      color: #2b8a3e;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .action-btn {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+
+    /* Verification Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      animation: modalFadeIn 0.3s;
+    }
+    
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .modal-title {
+      margin-bottom: 15px;
+      color: var(--primary);
+    }
+    
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    /* Import/Export Section */
+    .data-io-section {
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    
+    .file-input {
+      display: none;
+    }
+    
+    @media (max-width: 600px) {
+      .form-container {
+        flex-direction: column;
+      }
+      
+      th, td {
+        padding: 8px 10px;
+      }
+      
+      .actions {
+        flex-direction: column;
+      }
+      
+      .data-io-section {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📦 Parcel Tracker Pro</h1>
+    </header>
+    
+    <div class="form-container">
+      <div class="input-group">
+        <input type="text" id="customerName" placeholder="Recipient Name" required>
+      </div>
+      <div class="input-group">
+        <input type="text" id="parcelID" placeholder="Tracking Number" required>
+      </div>
+      <button onclick="addParcel()">Add Parcel</button>
+    </div>
+    
+    <div class="table-container">
+      <table id="parcelTable">
+        <thead>
+          <tr>
+            <th>Recipient</th>
+            <th>Tracking #</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    
+    <div class="data-io-section">
+      <div>
+        <button class="btn-import" onclick="document.getElementById('fileInput').click()">
+          📥 Import from Excel
+        </button>
+        <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx,.xls" onchange="importFromExcel(event)">
+      </div>
+      <button class="btn-excel" onclick="exportToExcel()">
+        📊 Export to Excel
+      </button>
+    </div>
+  </div>
+
+  <!-- Verification Modal -->
+  <div class="modal" id="verificationModal">
+    <div class="modal-content">
+      <h3 class="modal-title">Student Verification</h3>
+      <p>Enter student ID to confirm pickup:</p>
+      <input type="text" id="studentIdInput" placeholder="Student ID" required>
+      <div class="modal-actions">
+        <button onclick="cancelVerification()">Cancel</button>
+        <button class="btn-success" onclick="confirmTaken()">Confirm Pickup</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Data storage
+    let parcels = JSON.parse(localStorage.getItem('parcels')) || [];
+    let currentParcelId = null;
+    const verificationModal = document.getElementById('verificationModal');
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', renderTable);
+
+    // Add new parcel
+    function addParcel() {
+      const name = document.getElementById('customerName').value.trim();
+      const parcelID = document.getElementById('parcelID').value.trim();
+      
+      if (!name || !parcelID) {
+        alert('Please fill in all fields');
+        return;
+      }
+      
+      parcels.unshift({
+        id: Date.now(),
+        name,
+        parcelID,
+        status: 'Waiting',
+        date: new Date().toLocaleString(),
+        verifiedBy: null,
+        collectedAt: null
+      });
+      
+      saveToLocalStorage();
+      renderTable();
+      clearForm();
+    }
+
+    // Initiate mark as taken process
+    function markAsTaken(id) {
+      currentParcelId = id;
+      verificationModal.style.display = 'flex';
+      document.getElementById('studentIdInput').value = '';
+      document.getElementById('studentIdInput').focus();
+    }
+
+    // Confirm pickup with student ID
+    function confirmTaken() {
+      const studentId = document.getElementById('studentIdInput').value.trim();
+      
+      if (!studentId) {
+        alert('Please enter student ID');
+        return;
+      }
+      
+      const parcel = parcels.find(p => p.id === currentParcelId);
+      if (parcel) {
+        parcel.status = 'Taken';
+        parcel.verifiedBy = studentId;
+        parcel.collectedAt = new Date().toLocaleString();
+        
+        saveToLocalStorage();
+        renderTable();
+        verificationModal.style.display = 'none';
+      }
+    }
+
+    // Cancel verification
+    function cancelVerification() {
+      verificationModal.style.display = 'none';
+      currentParcelId = null;
+    }
+
+    // Delete parcel
+    function deleteParcel(id) {
+      if (confirm('Delete this parcel record?')) {
+        parcels = parcels.filter(p => p.id !== id);
+        saveToLocalStorage();
+        renderTable();
+      }
+    }
+
+    // Export to Excel (CSV format)
+    function exportToExcel() {
+      // CSV headers
+      const headers = [
+        'Recipient Name',
+        'Tracking Number',
+        'Status',
+        'Student ID',
+        'Collection Date',
+        'Added Date'
+      ];
+      
+      // CSV data rows
+      const data = parcels.map(parcel => [
+        parcel.name,
+        parcel.parcelID,
+        parcel.status,
+        parcel.verifiedBy || '',
+        parcel.collectedAt || '',
+        parcel.date
+      ]);
+      
+      // Create CSV content
+      let csvContent = headers.join(',') + '\n' +
+        data.map(row => 
+          row.map(field => 
+            `"${String(field).replace(/"/g, '""')}"`
+          ).join(',')
+        ).join('\n');
+      
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `parcel_export_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Import from Excel file
+    function importFromExcel(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const content = e.target.result;
+          const lines = content.split('\n');
+          const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          
+          // Clear current data if import is successful
+          const confirmImport = confirm(`Import ${lines.length - 1} records? This will replace current data.`);
+          if (!confirmImport) return;
+          
+          const newParcels = [];
+          
+          for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            
+            const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+                              .map(v => v.trim().replace(/^"|"$/g, ''));
+            
+            const parcel = {
+              id: Date.now() + i, // Generate new IDs
+              name: values[headers.indexOf('Recipient Name')] || '',
+              parcelID: values[headers.indexOf('Tracking Number')] || '',
+              status: values[headers.indexOf('Status')] || 'Waiting',
+              date: values[headers.indexOf('Added Date')] || new Date().toLocaleString(),
+              verifiedBy: values[headers.indexOf('Student ID')] || null,
+              collectedAt: values[headers.indexOf('Collection Date')] || null
+            };
+            
+            newParcels.push(parcel);
+          }
+          
+          parcels = newParcels;
+          saveToLocalStorage();
+          renderTable();
+          alert(`Successfully imported ${newParcels.length} parcels`);
+          
+        } catch (error) {
+          alert('Error importing file: ' + error.message);
+          console.error(error);
+        }
+      };
+      
+      reader.readAsText(file);
+    }
+
+    // Save to browser storage
+    function saveToLocalStorage() {
+      localStorage.setItem('parcels', JSON.stringify(parcels));
+    }
+
+    // Clear form inputs
+    function clearForm() {
+      document.getElementById('customerName').value = '';
+      document.getElementById('parcelID').value = '';
+    }
+
+    // Render parcel table
+    function renderTable() {
+      const tbody = document.querySelector('#parcelTable tbody');
+      tbody.innerHTML = parcels.map(parcel => `
+        <tr>
+          <td>${parcel.name}</td>
+          <td>${parcel.parcelID}</td>
+          <td>
+            <span class="status status-${parcel.status.toLowerCase()}">
+              ${parcel.status}
+              ${parcel.verifiedBy ? `<br><small>ID: ${parcel.verifiedBy}</small>` : ''}
+              ${parcel.collectedAt ? `<br><small>${parcel.collectedAt}</small>` : ''}
+            </span>
+          </td>
+          <td class="actions">
+            ${parcel.status === 'Waiting' ? 
+              `<button class="action-btn btn-success" onclick="markAsTaken(${parcel.id})">
+                Mark Taken
+              </button>` : ''}
+            <button class="action-btn btn-danger" onclick="deleteParcel(${parcel.id})">
+              Delete
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+  </script>
+</body>
+</html>
