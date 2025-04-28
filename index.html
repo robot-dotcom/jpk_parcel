@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PARCEL TRACKER KOLEJ MULU</title>
+  <title>Parcel Tracker Pro</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -13,6 +13,8 @@
       --danger: #f72585;
       --excel: #217346;
       --import: #6f42c1;
+      --whatsapp: #25D366;
+      --search: #6c757d;
       --light: #f8f9fa;
       --dark: #212529;
     }
@@ -87,6 +89,29 @@
       margin: 0;
     }
     
+    .search-container {
+      padding: 15px 20px 0;
+    }
+    
+    .search-bar {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .search-bar input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    
+    .search-bar button {
+      background-color: var(--search);
+      min-width: auto;
+      padding: 0 20px;
+    }
+    
     .form-container {
       padding: 20px;
       border-bottom: 1px solid #eee;
@@ -148,6 +173,23 @@
       background-color: var(--import);
     }
     
+    .btn-whatsapp {
+      background-color: var(--whatsapp);
+    }
+    
+    .btn-search {
+      background-color: var(--search);
+    }
+    
+    .btn-filter {
+      background-color: #6c757d;
+    }
+    
+    .btn-active {
+      background-color: var(--secondary);
+      box-shadow: 0 0 0 2px white, 0 0 0 4px var(--primary);
+    }
+    
     .table-container {
       padding: 20px;
       overflow-x: auto;
@@ -164,6 +206,17 @@
       position: sticky;
       top: 0;
       font-weight: 500;
+      cursor: pointer;
+    }
+    
+    th.sort-asc::after {
+      content: ' ↑';
+      font-size: 0.8em;
+    }
+    
+    th.sort-desc::after {
+      content: ' ↓';
+      font-size: 0.8em;
     }
     
     th, td {
@@ -207,6 +260,13 @@
     .action-btn {
       padding: 6px 12px;
       font-size: 0.85rem;
+    }
+    
+    .filter-buttons {
+      display: flex;
+      gap: 10px;
+      padding: 0 20px 15px;
+      flex-wrap: wrap;
     }
 
     /* Verification Modal */
@@ -280,6 +340,14 @@
         flex-direction: column;
       }
       
+      .search-bar {
+        flex-direction: column;
+      }
+      
+      .search-bar button {
+        width: 100%;
+      }
+      
       th, td {
         padding: 8px 10px;
       }
@@ -306,6 +374,14 @@
       .logo {
         height: 30px;
       }
+      
+      .filter-buttons {
+        flex-direction: column;
+      }
+      
+      .filter-buttons button {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -313,8 +389,23 @@
   <div class="container">
     <header>
       <img src="1.png" alt="Parcel Tracker Logo" class="logo">
-      <h1>Parcel Tracker Kolej Seri Mulu</h1>
+      <h1>Parcel Tracker Pro</h1>
     </header>
+    
+    <!-- Search Bar -->
+    <div class="search-container">
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search by name or tracking number...">
+        <button class="btn-search" onclick="searchParcels()">Search</button>
+      </div>
+    </div>
+    
+    <!-- Filter Buttons -->
+    <div class="filter-buttons">
+      <button class="btn-filter btn-active" onclick="filterParcels('all')">All Parcels</button>
+      <button class="btn-filter" onclick="filterParcels('Waiting')">Waiting</button>
+      <button class="btn-filter" onclick="filterParcels('Taken')">Taken</button>
+    </div>
     
     <div class="form-container">
       <div class="input-group">
@@ -330,9 +421,9 @@
       <table id="parcelTable">
         <thead>
           <tr>
-            <th>Recipient</th>
+            <th onclick="sortTable('name')">Recipient</th>
             <th>Tracking #</th>
-            <th>Status</th>
+            <th onclick="sortTable('status')">Status</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -381,9 +472,125 @@
     let parcels = JSON.parse(localStorage.getItem('parcels')) || [];
     let currentParcelId = null;
     const verificationModal = document.getElementById('verificationModal');
+    let allParcels = []; // To store all parcels for search functionality
+    let currentFilter = 'all'; // Track current filter
+    let sortDirection = {}; // Track sort directions for each column
 
     // Initialize on page load
-    document.addEventListener('DOMContentLoaded', renderTable);
+    document.addEventListener('DOMContentLoaded', () => {
+      allParcels = [...parcels]; // Make a copy of all parcels
+      renderTable(parcels);
+      
+      // Add event listener for Enter key in search
+      document.getElementById('searchInput').addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+          searchParcels();
+        }
+      });
+      
+      // Initialize sort directions
+      sortDirection = {
+        name: null,
+        status: null
+      };
+    });
+
+    // Filter parcels by status
+    function filterParcels(status) {
+      currentFilter = status;
+      
+      // Update active button state
+      document.querySelectorAll('.filter-buttons button').forEach(btn => {
+        btn.classList.remove('btn-active');
+      });
+      
+      if (status === 'all') {
+        document.querySelector('.filter-buttons button:nth-child(1)').classList.add('btn-active');
+        renderTable(allParcels);
+      } else if (status === 'Waiting') {
+        document.querySelector('.filter-buttons button:nth-child(2)').classList.add('btn-active');
+        const filtered = allParcels.filter(parcel => parcel.status === 'Waiting');
+        renderTable(filtered);
+      } else if (status === 'Taken') {
+        document.querySelector('.filter-buttons button:nth-child(3)').classList.add('btn-active');
+        const filtered = allParcels.filter(parcel => parcel.status === 'Taken');
+        renderTable(filtered);
+      }
+    }
+
+    // Sort table by column
+    function sortTable(column) {
+      // Toggle sort direction
+      if (sortDirection[column] === 'asc') {
+        sortDirection[column] = 'desc';
+      } else {
+        sortDirection[column] = 'asc';
+      }
+      
+      // Clear other column sort indicators
+      document.querySelectorAll('#parcelTable th').forEach(th => {
+        if (th.textContent.trim() !== column.charAt(0).toUpperCase() + column.slice(1)) {
+          th.classList.remove('sort-asc', 'sort-desc');
+        }
+      });
+      
+      // Update current column sort indicator
+      const header = document.querySelector(`#parcelTable th[onclick="sortTable('${column}')"]`);
+      header.classList.remove('sort-asc', 'sort-desc');
+      header.classList.add(sortDirection[column] === 'asc' ? 'sort-asc' : 'sort-desc');
+      
+      // Get the current data to sort (either filtered or all)
+      let dataToSort = currentFilter === 'all' ? [...allParcels] : 
+                      currentFilter === 'Waiting' ? allParcels.filter(p => p.status === 'Waiting') :
+                      allParcels.filter(p => p.status === 'Taken');
+      
+      // Sort the data
+      dataToSort.sort((a, b) => {
+        let valueA, valueB;
+        
+        if (column === 'name') {
+          valueA = a.name.toLowerCase();
+          valueB = b.name.toLowerCase();
+        } else if (column === 'status') {
+          valueA = a.status;
+          valueB = b.status;
+        }
+        
+        if (sortDirection[column] === 'asc') {
+          return valueA > valueB ? 1 : -1;
+        } else {
+          return valueA < valueB ? 1 : -1;
+        }
+      });
+      
+      renderTable(dataToSort);
+    }
+
+    // Search parcels by name or tracking number
+    function searchParcels() {
+      const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+      
+      if (!searchTerm) {
+        filterParcels(currentFilter); // Reapply current filter
+        return;
+      }
+      
+      let filtered = [];
+      if (currentFilter === 'all') {
+        filtered = allParcels.filter(parcel => 
+          parcel.name.toLowerCase().includes(searchTerm) || 
+          parcel.parcelID.toLowerCase().includes(searchTerm)
+        );
+      } else {
+        filtered = allParcels.filter(parcel => 
+          (parcel.status === currentFilter) && 
+          (parcel.name.toLowerCase().includes(searchTerm) || 
+           parcel.parcelID.toLowerCase().includes(searchTerm))
+        );
+      }
+      
+      renderTable(filtered);
+    }
 
     // Add new parcel
     function addParcel() {
@@ -395,7 +602,7 @@
         return;
       }
       
-      parcels.unshift({
+      const newParcel = {
         id: Date.now(),
         name,
         parcelID,
@@ -404,10 +611,15 @@
         verifiedBy: null,
         studentPhone: null,
         collectedAt: null
-      });
+      };
+      
+      parcels.unshift(newParcel);
+      allParcels.unshift(newParcel); // Add to searchable array
       
       saveToLocalStorage();
-      renderTable();
+      renderTable(currentFilter === 'all' ? parcels : 
+                 currentFilter === 'Waiting' ? parcels.filter(p => p.status === 'Waiting') :
+                 parcels.filter(p => p.status === 'Taken'));
       clearForm();
     }
 
@@ -436,17 +648,46 @@
         return;
       }
       
-      const parcel = parcels.find(p => p.id === currentParcelId);
-      if (parcel) {
-        parcel.status = 'Taken';
-        parcel.verifiedBy = studentId;
-        parcel.studentPhone = studentPhone;
-        parcel.collectedAt = new Date().toLocaleString();
+      const parcelIndex = parcels.findIndex(p => p.id === currentParcelId);
+      const allParcelIndex = allParcels.findIndex(p => p.id === currentParcelId);
+      
+      if (parcelIndex !== -1 && allParcelIndex !== -1) {
+        parcels[parcelIndex].status = 'Taken';
+        parcels[parcelIndex].verifiedBy = studentId;
+        parcels[parcelIndex].studentPhone = studentPhone;
+        parcels[parcelIndex].collectedAt = new Date().toLocaleString();
+        
+        allParcels[allParcelIndex].status = 'Taken';
+        allParcels[allParcelIndex].verifiedBy = studentId;
+        allParcels[allParcelIndex].studentPhone = studentPhone;
+        allParcels[allParcelIndex].collectedAt = new Date().toLocaleString();
         
         saveToLocalStorage();
-        renderTable();
+        renderTable(currentFilter === 'all' ? parcels : 
+                   currentFilter === 'Waiting' ? parcels.filter(p => p.status === 'Waiting') :
+                   parcels.filter(p => p.status === 'Taken'));
         verificationModal.style.display = 'none';
       }
+    }
+
+    // Share receipt via WhatsApp
+    function shareViaWhatsApp(id) {
+      const parcel = parcels.find(p => p.id === id);
+      if (!parcel) return;
+      
+      const message = `📦 *Parcel Receipt*\n\n` +
+                     `*Recipient:* ${parcel.name}\n` +
+                     `*Tracking #:* ${parcel.parcelID}\n` +
+                     `*Status:* ${parcel.status}\n` +
+                     `*Collected By:* ${parcel.verifiedBy}\n` +
+                     `*Phone:* ${parcel.studentPhone}\n` +
+                     `*Collection Date:* ${parcel.collectedAt}\n\n` +
+                     `Thank you for using our service!`;
+      
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+      
+      window.open(whatsappUrl, '_blank');
     }
 
     // Cancel verification
@@ -459,13 +700,45 @@
     function deleteParcel(id) {
       if (confirm('Delete this parcel record?')) {
         parcels = parcels.filter(p => p.id !== id);
+        allParcels = allParcels.filter(p => p.id !== id);
         saveToLocalStorage();
-        renderTable();
+        renderTable(currentFilter === 'all' ? parcels : 
+                   currentFilter === 'Waiting' ? parcels.filter(p => p.status === 'Waiting') :
+                   parcels.filter(p => p.status === 'Taken'));
       }
     }
 
     // Export to Excel (CSV format)
     function exportToExcel() {
+      // Determine which data to export based on current filter
+      let dataToExport = [];
+      if (currentFilter === 'all') {
+        dataToExport = [...allParcels];
+      } else if (currentFilter === 'Waiting') {
+        dataToExport = allParcels.filter(p => p.status === 'Waiting');
+      } else {
+        dataToExport = allParcels.filter(p => p.status === 'Taken');
+      }
+      
+      // Apply current sorting if any
+      if (sortDirection.name) {
+        dataToExport.sort((a, b) => {
+          const valueA = a.name.toLowerCase();
+          const valueB = b.name.toLowerCase();
+          return sortDirection.name === 'asc' ? 
+            (valueA > valueB ? 1 : -1) : 
+            (valueA < valueB ? 1 : -1);
+        });
+      } else if (sortDirection.status) {
+        dataToExport.sort((a, b) => {
+          const valueA = a.status;
+          const valueB = b.status;
+          return sortDirection.status === 'asc' ? 
+            (valueA > valueB ? 1 : -1) : 
+            (valueA < valueB ? 1 : -1);
+        });
+      }
+      
       // CSV headers
       const headers = [
         'Recipient Name',
@@ -478,7 +751,7 @@
       ];
       
       // CSV data rows
-      const data = parcels.map(parcel => [
+      const data = dataToExport.map(parcel => [
         parcel.name,
         parcel.parcelID,
         parcel.status,
@@ -545,8 +818,9 @@
           }
           
           parcels = newParcels;
+          allParcels = [...newParcels]; // Update searchable array
           saveToLocalStorage();
-          renderTable();
+          filterParcels(currentFilter); // Reapply current filter
           alert(`Successfully imported ${newParcels.length} parcels`);
           
         } catch (error) {
@@ -570,9 +844,9 @@
     }
 
     // Render parcel table
-    function renderTable() {
+    function renderTable(dataToRender) {
       const tbody = document.querySelector('#parcelTable tbody');
-      tbody.innerHTML = parcels.map(parcel => `
+      tbody.innerHTML = dataToRender.map(parcel => `
         <tr>
           <td>${parcel.name}</td>
           <td>${parcel.parcelID}</td>
@@ -588,6 +862,10 @@
             ${parcel.status === 'Waiting' ? 
               `<button class="action-btn btn-success" onclick="markAsTaken(${parcel.id})">
                 Mark Taken
+              </button>` : ''}
+            ${parcel.status === 'Taken' ? 
+              `<button class="action-btn btn-whatsapp" onclick="shareViaWhatsApp(${parcel.id})">
+                Share Receipt
               </button>` : ''}
             <button class="action-btn btn-danger" onclick="deleteParcel(${parcel.id})">
               Delete
