@@ -467,413 +467,578 @@
     </div>
   </div>
 
-  <script>
-    // Data storage
-    let parcels = JSON.parse(localStorage.getItem('parcels')) || [];
-    let currentParcelId = null;
-    const verificationModal = document.getElementById('verificationModal');
-    let allParcels = []; // To store all parcels for search functionality
-    let currentFilter = 'all'; // Track current filter
-    let sortDirection = {}; // Track sort directions for each column
+ <!-- (Previous HTML and CSS remains the same) -->
 
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', () => {
-      allParcels = [...parcels]; // Make a copy of all parcels
-      renderTable(parcels);
-      
-      // Add event listener for Enter key in search
-      document.getElementById('searchInput').addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') {
-          searchParcels();
-        }
-      });
-      
-      // Initialize sort directions
-      sortDirection = {
-        name: null,
-        status: null
-      };
+<script>
+  // Data storage
+  let parcels = JSON.parse(localStorage.getItem('parcels')) || [];
+  let currentParcelId = null;
+  const verificationModal = document.getElementById('verificationModal');
+  let allParcels = []; // To store all parcels for search functionality
+  let currentFilter = 'all'; // Track current filter
+  let sortDirection = {}; // Track sort directions for each column
+  let isDarkMode = localStorage.getItem('darkMode') === 'true';
+
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    allParcels = [...parcels]; // Make a copy of all parcels
+    renderTable(parcels);
+    updateStats();
+    applyTheme();
+    
+    // Add event listener for Enter key in search
+    document.getElementById('searchInput').addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') {
+        searchParcels();
+      }
     });
+    
+    // Initialize sort directions
+    sortDirection = {
+      name: null,
+      parcelID: null,
+      date: null,
+      status: null
+    };
+    
+    // Set up theme toggle
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  });
 
-    // Filter parcels by status
-    function filterParcels(status) {
-      currentFilter = status;
-      
-      // Update active button state
-      document.querySelectorAll('.filter-buttons button').forEach(btn => {
-        btn.classList.remove('btn-active');
-      });
-      
-      if (status === 'all') {
-        document.querySelector('.filter-buttons button:nth-child(1)').classList.add('btn-active');
-        renderTable(allParcels);
-      } else if (status === 'Waiting') {
-        document.querySelector('.filter-buttons button:nth-child(2)').classList.add('btn-active');
-        const filtered = allParcels.filter(parcel => parcel.status === 'Waiting');
-        renderTable(filtered);
-      } else if (status === 'Taken') {
-        document.querySelector('.filter-buttons button:nth-child(3)').classList.add('btn-active');
-        const filtered = allParcels.filter(parcel => parcel.status === 'Taken');
-        renderTable(filtered);
-      }
+  // Toggle dark/light theme
+  function toggleTheme() {
+    isDarkMode = !isDarkMode;
+    localStorage.setItem('darkMode', isDarkMode);
+    applyTheme();
+  }
+  
+  function applyTheme() {
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+      document.getElementById('themeToggle').innerHTML = '<i class="fas fa-sun"></i>';
+    } else {
+      document.body.classList.remove('dark-mode');
+      document.getElementById('themeToggle').innerHTML = '<i class="fas fa-moon"></i>';
     }
+  }
 
-    // Sort table by column
-    function sortTable(column) {
-      // Toggle sort direction
-      if (sortDirection[column] === 'asc') {
-        sortDirection[column] = 'desc';
-      } else {
-        sortDirection[column] = 'asc';
-      }
-      
-      // Clear other column sort indicators
-      document.querySelectorAll('#parcelTable th').forEach(th => {
-        if (th.textContent.trim() !== column.charAt(0).toUpperCase() + column.slice(1)) {
-          th.classList.remove('sort-asc', 'sort-desc');
-        }
-      });
-      
-      // Update current column sort indicator
-      const header = document.querySelector(`#parcelTable th[onclick="sortTable('${column}')"]`);
-      header.classList.remove('sort-asc', 'sort-desc');
-      header.classList.add(sortDirection[column] === 'asc' ? 'sort-asc' : 'sort-desc');
-      
-      // Get the current data to sort (either filtered or all)
-      let dataToSort = currentFilter === 'all' ? [...allParcels] : 
-                      currentFilter === 'Waiting' ? allParcels.filter(p => p.status === 'Waiting') :
-                      allParcels.filter(p => p.status === 'Taken');
-      
-      // Sort the data
-      dataToSort.sort((a, b) => {
-        let valueA, valueB;
-        
-        if (column === 'name') {
-          valueA = a.name.toLowerCase();
-          valueB = b.name.toLowerCase();
-        } else if (column === 'status') {
-          valueA = a.status;
-          valueB = b.status;
-        }
-        
-        if (sortDirection[column] === 'asc') {
-          return valueA > valueB ? 1 : -1;
-        } else {
-          return valueA < valueB ? 1 : -1;
-        }
-      });
-      
-      renderTable(dataToSort);
-    }
+  // Update statistics cards
+  function updateStats() {
+    const today = new Date().toLocaleDateString();
+    const todayParcels = allParcels.filter(p => {
+      const parcelDate = new Date(p.date).toLocaleDateString();
+      return parcelDate === today;
+    }).length;
+    
+    document.getElementById('totalParcels').textContent = allParcels.length;
+    document.getElementById('waitingParcels').textContent = allParcels.filter(p => p.status === 'Waiting').length;
+    document.getElementById('takenParcels').textContent = allParcels.filter(p => p.status === 'Taken').length;
+    document.getElementById('todayParcels').textContent = todayParcels;
+  }
 
-    // Search parcels by name or tracking number
-    function searchParcels() {
-      const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
-      
-      if (!searchTerm) {
-        filterParcels(currentFilter); // Reapply current filter
-        return;
-      }
-      
-      let filtered = [];
-      if (currentFilter === 'all') {
-        filtered = allParcels.filter(parcel => 
-          parcel.name.toLowerCase().includes(searchTerm) || 
-          parcel.parcelID.toLowerCase().includes(searchTerm)
-        );
-      } else {
-        filtered = allParcels.filter(parcel => 
-          (parcel.status === currentFilter) && 
-          (parcel.name.toLowerCase().includes(searchTerm) || 
-           parcel.parcelID.toLowerCase().includes(searchTerm))
-        );
-      }
-      
+  // Filter parcels by status
+  function filterParcels(status) {
+    currentFilter = status;
+    
+    // Update active button state
+    document.querySelectorAll('.filter-buttons button').forEach(btn => {
+      btn.classList.remove('btn-active');
+    });
+    
+    // Find and activate the correct button
+    const buttons = document.querySelectorAll('.filter-buttons button');
+    let activeIndex = 0;
+    
+    if (status === 'Waiting') activeIndex = 1;
+    else if (status === 'Taken') activeIndex = 2;
+    else if (status === 'today') activeIndex = 3;
+    
+    buttons[activeIndex].classList.add('btn-active');
+    
+    if (status === 'all') {
+      renderTable(allParcels);
+    } else if (status === 'Waiting') {
+      const filtered = allParcels.filter(parcel => parcel.status === 'Waiting');
+      renderTable(filtered);
+    } else if (status === 'Taken') {
+      const filtered = allParcels.filter(parcel => parcel.status === 'Taken');
+      renderTable(filtered);
+    } else if (status === 'today') {
+      const today = new Date().toLocaleDateString();
+      const filtered = allParcels.filter(p => {
+        const parcelDate = new Date(p.date).toLocaleDateString();
+        return parcelDate === today;
+      });
       renderTable(filtered);
     }
+  }
 
-    // Add new parcel
-    function addParcel() {
-      const name = document.getElementById('customerName').value.trim();
-      const parcelID = document.getElementById('parcelID').value.trim();
+  // Sort table by column
+  function sortTable(column) {
+    // Toggle sort direction
+    if (sortDirection[column] === 'asc') {
+      sortDirection[column] = 'desc';
+    } else {
+      sortDirection[column] = 'asc';
+    }
+    
+    // Clear other column sort indicators
+    document.querySelectorAll('#parcelTable th').forEach(th => {
+      if (!th.getAttribute('onclick')) return;
+      const thColumn = th.getAttribute('onclick').match(/sortTable\('(.*?)'\)/)[1];
+      if (thColumn !== column) {
+        th.classList.remove('sort-asc', 'sort-desc');
+      }
+    });
+    
+    // Update current column sort indicator
+    const header = document.querySelector(`#parcelTable th[onclick="sortTable('${column}')"]`);
+    header.classList.remove('sort-asc', 'sort-desc');
+    header.classList.add(sortDirection[column] === 'asc' ? 'sort-asc' : 'sort-desc');
+    
+    // Get the current data to sort (either filtered or all)
+    let dataToSort = currentFilter === 'all' ? [...allParcels] : 
+                    currentFilter === 'Waiting' ? allParcels.filter(p => p.status === 'Waiting') :
+                    currentFilter === 'Taken' ? allParcels.filter(p => p.status === 'Taken') :
+                    currentFilter === 'today' ? allParcels.filter(p => {
+                      const today = new Date().toLocaleDateString();
+                      const parcelDate = new Date(p.date).toLocaleDateString();
+                      return parcelDate === today;
+                    }) : [...allParcels];
+    
+    // Sort the data
+    dataToSort.sort((a, b) => {
+      let valueA, valueB;
       
-      if (!name || !parcelID) {
-        alert('Please fill in all fields');
-        return;
+      if (column === 'name') {
+        valueA = a.name.toLowerCase();
+        valueB = b.name.toLowerCase();
+      } else if (column === 'parcelID') {
+        valueA = a.parcelID.toLowerCase();
+        valueB = b.parcelID.toLowerCase();
+      } else if (column === 'date') {
+        valueA = new Date(a.date);
+        valueB = new Date(b.date);
+      } else if (column === 'status') {
+        valueA = a.status;
+        valueB = b.status;
       }
       
-      const newParcel = {
-        id: Date.now(),
-        name,
-        parcelID,
-        status: 'Waiting',
-        date: new Date().toLocaleString(),
-        verifiedBy: null,
-        studentPhone: null,
-        collectedAt: null
-      };
+      if (sortDirection[column] === 'asc') {
+        return valueA > valueB ? 1 : -1;
+      } else {
+        return valueA < valueB ? 1 : -1;
+      }
+    });
+    
+    renderTable(dataToSort);
+  }
+
+  // Search parcels by name, tracking number or student ID
+  function searchParcels() {
+    const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+    
+    if (!searchTerm) {
+      filterParcels(currentFilter); // Reapply current filter
+      return;
+    }
+    
+    let filtered = [];
+    if (currentFilter === 'all') {
+      filtered = allParcels.filter(parcel => 
+        parcel.name.toLowerCase().includes(searchTerm) || 
+        parcel.parcelID.toLowerCase().includes(searchTerm) ||
+        (parcel.verifiedBy && parcel.verifiedBy.toLowerCase().includes(searchTerm))
+      );
+    } else if (currentFilter === 'today') {
+      const today = new Date().toLocaleDateString();
+      filtered = allParcels.filter(parcel => 
+        (new Date(parcel.date).toLocaleDateString() === today) &&
+        (parcel.name.toLowerCase().includes(searchTerm) || 
+         parcel.parcelID.toLowerCase().includes(searchTerm) ||
+         (parcel.verifiedBy && parcel.verifiedBy.toLowerCase().includes(searchTerm)))
+      );
+    } else {
+      filtered = allParcels.filter(parcel => 
+        (parcel.status === currentFilter) && 
+        (parcel.name.toLowerCase().includes(searchTerm) || 
+         parcel.parcelID.toLowerCase().includes(searchTerm) ||
+         (parcel.verifiedBy && parcel.verifiedBy.toLowerCase().includes(searchTerm)))
+      );
+    }
+    
+    renderTable(filtered);
+  }
+
+  // Add new parcel
+  function addParcel() {
+    const name = document.getElementById('customerName').value.trim();
+    const parcelID = document.getElementById('parcelID').value.trim();
+    
+    if (!name || !parcelID) {
+      showToast('Please fill in all fields', 'error');
+      return;
+    }
+    
+    // Check if parcel ID already exists
+    if (allParcels.some(p => p.parcelID.toLowerCase() === parcelID.toLowerCase())) {
+      showToast('Tracking number already exists', 'warning');
+      return;
+    }
+    
+    const newParcel = {
+      id: Date.now(),
+      name,
+      parcelID,
+      status: 'Waiting',
+      date: new Date().toISOString(),
+      verifiedBy: null,
+      studentPhone: null,
+      collectedAt: null
+    };
+    
+    parcels.unshift(newParcel);
+    allParcels.unshift(newParcel); // Add to searchable array
+    
+    saveToLocalStorage();
+    renderTable(currentFilter === 'all' ? parcels : 
+               currentFilter === 'Waiting' ? parcels.filter(p => p.status === 'Waiting') :
+               currentFilter === 'Taken' ? parcels.filter(p => p.status === 'Taken') :
+               parcels.filter(p => {
+                 const today = new Date().toLocaleDateString();
+                 const parcelDate = new Date(p.date).toLocaleDateString();
+                 return parcelDate === today;
+               }));
+    clearForm();
+    updateStats();
+    showToast('Parcel added successfully', 'success');
+  }
+
+  // Initiate mark as taken process
+  function markAsTaken(id) {
+    currentParcelId = id;
+    verificationModal.style.display = 'flex';
+    document.getElementById('studentIdInput').value = '';
+    document.getElementById('studentPhoneInput').value = '';
+    document.getElementById('studentIdInput').focus();
+  }
+
+  // Confirm pickup with student ID and phone
+  function confirmTaken() {
+    const studentId = document.getElementById('studentIdInput').value.trim();
+    const studentPhone = document.getElementById('studentPhoneInput').value.trim();
+    
+    if (!studentId || !studentPhone) {
+      showToast('Please enter both student ID and phone number', 'error');
+      return;
+    }
+    
+    // Basic phone number validation
+    if (!/^[\d\s\+\-\(\)]{8,15}$/.test(studentPhone)) {
+      showToast('Please enter a valid phone number (8-15 digits)', 'error');
+      return;
+    }
+    
+    const parcelIndex = parcels.findIndex(p => p.id === currentParcelId);
+    const allParcelIndex = allParcels.findIndex(p => p.id === currentParcelId);
+    
+    if (parcelIndex !== -1 && allParcelIndex !== -1) {
+      parcels[parcelIndex].status = 'Taken';
+      parcels[parcelIndex].verifiedBy = studentId;
+      parcels[parcelIndex].studentPhone = studentPhone;
+      parcels[parcelIndex].collectedAt = new Date().toISOString();
       
-      parcels.unshift(newParcel);
-      allParcels.unshift(newParcel); // Add to searchable array
+      allParcels[allParcelIndex].status = 'Taken';
+      allParcels[allParcelIndex].verifiedBy = studentId;
+      allParcels[allParcelIndex].studentPhone = studentPhone;
+      allParcels[allParcelIndex].collectedAt = new Date().toISOString();
       
       saveToLocalStorage();
       renderTable(currentFilter === 'all' ? parcels : 
                  currentFilter === 'Waiting' ? parcels.filter(p => p.status === 'Waiting') :
-                 parcels.filter(p => p.status === 'Taken'));
-      clearForm();
-    }
-
-    // Initiate mark as taken process
-    function markAsTaken(id) {
-      currentParcelId = id;
-      verificationModal.style.display = 'flex';
-      document.getElementById('studentIdInput').value = '';
-      document.getElementById('studentPhoneInput').value = '';
-      document.getElementById('studentIdInput').focus();
-    }
-
-    // Confirm pickup with student ID and phone
-    function confirmTaken() {
-      const studentId = document.getElementById('studentIdInput').value.trim();
-      const studentPhone = document.getElementById('studentPhoneInput').value.trim();
-      
-      if (!studentId || !studentPhone) {
-        alert('Please enter both student ID and phone number');
-        return;
-      }
-      
-      // Basic phone number validation
-      if (!/^[\d\s\+\-\(\)]{8,15}$/.test(studentPhone)) {
-        alert('Please enter a valid phone number (8-15 digits)');
-        return;
-      }
-      
-      const parcelIndex = parcels.findIndex(p => p.id === currentParcelId);
-      const allParcelIndex = allParcels.findIndex(p => p.id === currentParcelId);
-      
-      if (parcelIndex !== -1 && allParcelIndex !== -1) {
-        parcels[parcelIndex].status = 'Taken';
-        parcels[parcelIndex].verifiedBy = studentId;
-        parcels[parcelIndex].studentPhone = studentPhone;
-        parcels[parcelIndex].collectedAt = new Date().toLocaleString();
-        
-        allParcels[allParcelIndex].status = 'Taken';
-        allParcels[allParcelIndex].verifiedBy = studentId;
-        allParcels[allParcelIndex].studentPhone = studentPhone;
-        allParcels[allParcelIndex].collectedAt = new Date().toLocaleString();
-        
-        saveToLocalStorage();
-        renderTable(currentFilter === 'all' ? parcels : 
-                   currentFilter === 'Waiting' ? parcels.filter(p => p.status === 'Waiting') :
-                   parcels.filter(p => p.status === 'Taken'));
-        verificationModal.style.display = 'none';
-      }
-    }
-
-    // Share receipt via WhatsApp
-    function shareViaWhatsApp(id) {
-      const parcel = parcels.find(p => p.id === id);
-      if (!parcel) return;
-      
-      const message = `📦 *Parcel Receipt*\n\n` +
-                     `*Recipient:* ${parcel.name}\n` +
-                     `*Tracking #:* ${parcel.parcelID}\n` +
-                     `*Status:* ${parcel.status}\n` +
-                     `*Collected By:* ${parcel.verifiedBy}\n` +
-                     `*Phone:* ${parcel.studentPhone}\n` +
-                     `*Collection Date:* ${parcel.collectedAt}\n\n` +
-                     `Thank you for using our service!`;
-      
-      const encodedMessage = encodeURIComponent(message);
-      const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-      
-      window.open(whatsappUrl, '_blank');
-    }
-
-    // Cancel verification
-    function cancelVerification() {
+                 currentFilter === 'Taken' ? parcels.filter(p => p.status === 'Taken') :
+                 parcels.filter(p => {
+                   const today = new Date().toLocaleDateString();
+                   const parcelDate = new Date(p.date).toLocaleDateString();
+                   return parcelDate === today;
+                 }));
       verificationModal.style.display = 'none';
-      currentParcelId = null;
+      updateStats();
+      showToast('Parcel marked as collected', 'success');
     }
+  }
 
-    // Delete parcel
-    function deleteParcel(id) {
-      if (confirm('Delete this parcel record?')) {
-        parcels = parcels.filter(p => p.id !== id);
-        allParcels = allParcels.filter(p => p.id !== id);
-        saveToLocalStorage();
-        renderTable(currentFilter === 'all' ? parcels : 
-                   currentFilter === 'Waiting' ? parcels.filter(p => p.status === 'Waiting') :
-                   parcels.filter(p => p.status === 'Taken'));
-      }
+  // Share receipt via WhatsApp
+  function shareViaWhatsApp(id) {
+    const parcel = parcels.find(p => p.id === id);
+    if (!parcel) return;
+    
+    const message = `📦 *Parcel Receipt - Kolej Seri Mulu*\n\n` +
+                   `*Recipient:* ${parcel.name}\n` +
+                   `*Tracking #:* ${parcel.parcelID}\n` +
+                   `*Status:* ${parcel.status}\n` +
+                   `*Collected By:* ${parcel.verifiedBy}\n` +
+                   `*Phone:* ${parcel.studentPhone}\n` +
+                   `*Collection Date:* ${formatDate(parcel.collectedAt)}\n\n` +
+                   `Thank you for using our service!`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    
+    window.open(whatsappUrl, '_blank');
+  }
+  
+  // Format date for display
+  function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  }
+
+  // Cancel verification
+  function cancelVerification() {
+    verificationModal.style.display = 'none';
+    currentParcelId = null;
+  }
+
+  // Delete parcel
+  function deleteParcel(id) {
+    if (confirm('Are you sure you want to delete this parcel record?')) {
+      parcels = parcels.filter(p => p.id !== id);
+      allParcels = allParcels.filter(p => p.id !== id);
+      saveToLocalStorage();
+      renderTable(currentFilter === 'all' ? parcels : 
+                 currentFilter === 'Waiting' ? parcels.filter(p => p.status === 'Waiting') :
+                 currentFilter === 'Taken' ? parcels.filter(p => p.status === 'Taken') :
+                 parcels.filter(p => {
+                   const today = new Date().toLocaleDateString();
+                   const parcelDate = new Date(p.date).toLocaleDateString();
+                   return parcelDate === today;
+                 }));
+      updateStats();
+      showToast('Parcel deleted successfully', 'success');
     }
+  }
 
-    // Export to Excel (CSV format)
-    function exportToExcel() {
-      // Determine which data to export based on current filter
-      let dataToExport = [];
-      if (currentFilter === 'all') {
-        dataToExport = [...allParcels];
-      } else if (currentFilter === 'Waiting') {
-        dataToExport = allParcels.filter(p => p.status === 'Waiting');
-      } else {
-        dataToExport = allParcels.filter(p => p.status === 'Taken');
-      }
-      
-      // Apply current sorting if any
-      if (sortDirection.name) {
-        dataToExport.sort((a, b) => {
-          const valueA = a.name.toLowerCase();
-          const valueB = b.name.toLowerCase();
-          return sortDirection.name === 'asc' ? 
-            (valueA > valueB ? 1 : -1) : 
-            (valueA < valueB ? 1 : -1);
-        });
-      } else if (sortDirection.status) {
-        dataToExport.sort((a, b) => {
-          const valueA = a.status;
-          const valueB = b.status;
-          return sortDirection.status === 'asc' ? 
-            (valueA > valueB ? 1 : -1) : 
-            (valueA < valueB ? 1 : -1);
-        });
-      }
-      
-      // CSV headers
-      const headers = [
-        'Recipient Name',
-        'Tracking Number',
-        'Status',
-        'Student ID',
-        'Student Phone',
-        'Collection Date',
-        'Added Date'
-      ];
-      
-      // CSV data rows
-      const data = dataToExport.map(parcel => [
-        parcel.name,
-        parcel.parcelID,
-        parcel.status,
-        parcel.verifiedBy || '',
-        parcel.studentPhone || '',
-        parcel.collectedAt || '',
-        parcel.date
-      ]);
-      
-      // Create CSV content
-      let csvContent = headers.join(',') + '\n' +
-        data.map(row => 
-          row.map(field => 
-            `"${String(field).replace(/"/g, '""')}"`
-          ).join(',')
-        ).join('\n');
-      
-      // Create download link
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `parcel_export_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  // Export to Excel (CSV format)
+  function exportToExcel() {
+    // Determine which data to export based on current filter
+    let dataToExport = [];
+    if (currentFilter === 'all') {
+      dataToExport = [...allParcels];
+    } else if (currentFilter === 'Waiting') {
+      dataToExport = allParcels.filter(p => p.status === 'Waiting');
+    } else if (currentFilter === 'Taken') {
+      dataToExport = allParcels.filter(p => p.status === 'Taken');
+    } else if (currentFilter === 'today') {
+      const today = new Date().toLocaleDateString();
+      dataToExport = allParcels.filter(p => {
+        const parcelDate = new Date(p.date).toLocaleDateString();
+        return parcelDate === today;
+      });
     }
+    
+    // Apply current sorting if any
+    if (sortDirection.name) {
+      dataToExport.sort((a, b) => {
+        const valueA = a.name.toLowerCase();
+        const valueB = b.name.toLowerCase();
+        return sortDirection.name === 'asc' ? 
+          (valueA > valueB ? 1 : -1) : 
+          (valueA < valueB ? 1 : -1);
+      });
+    } else if (sortDirection.parcelID) {
+      dataToExport.sort((a, b) => {
+        const valueA = a.parcelID.toLowerCase();
+        const valueB = b.parcelID.toLowerCase();
+        return sortDirection.parcelID === 'asc' ? 
+          (valueA > valueB ? 1 : -1) : 
+          (valueA < valueB ? 1 : -1);
+      });
+    } else if (sortDirection.date) {
+      dataToExport.sort((a, b) => {
+        const valueA = new Date(a.date);
+        const valueB = new Date(b.date);
+        return sortDirection.date === 'asc' ? 
+          (valueA > valueB ? 1 : -1) : 
+          (valueA < valueB ? 1 : -1);
+      });
+    } else if (sortDirection.status) {
+      dataToExport.sort((a, b) => {
+        const valueA = a.status;
+        const valueB = b.status;
+        return sortDirection.status === 'asc' ? 
+          (valueA > valueB ? 1 : -1) : 
+          (valueA < valueB ? 1 : -1);
+      });
+    }
+    
+    // CSV headers
+    const headers = [
+      'Recipient Name',
+      'Tracking Number',
+      'Status',
+      'Student ID',
+      'Student Phone',
+      'Collection Date',
+      'Added Date'
+    ];
+    
+    // CSV data rows
+    const data = dataToExport.map(parcel => [
+      parcel.name,
+      parcel.parcelID,
+      parcel.status,
+      parcel.verifiedBy || '',
+      parcel.studentPhone || '',
+      parcel.collectedAt ? formatDate(parcel.collectedAt) : '',
+      formatDate(parcel.date)
+    ]);
+    
+    // Create CSV content
+    let csvContent = headers.join(',') + '\n' +
+      data.map(row => 
+        row.map(field => 
+          `"${String(field).replace(/"/g, '""')}"`
+        ).join(',')
+      ).join('\n');
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `parcel_export_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('Data exported successfully', 'success');
+  }
 
-    // Import from Excel file
-    function importFromExcel(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const content = e.target.result;
-          const lines = content.split('\n');
-          const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  // Import from Excel file
+  function importFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const content = e.target.result;
+        const lines = content.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        
+        const confirmImport = confirm(`Import ${lines.length - 1} records? This will replace current data.`);
+        if (!confirmImport) return;
+        
+        const newParcels = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
           
-          const confirmImport = confirm(`Import ${lines.length - 1} records? This will replace current data.`);
-          if (!confirmImport) return;
+          const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+                            .map(v => v.trim().replace(/^"|"$/g, ''));
           
-          const newParcels = [];
+          const parcel = {
+            id: Date.now() + i, // Generate new IDs
+            name: values[headers.indexOf('Recipient Name')] || '',
+            parcelID: values[headers.indexOf('Tracking Number')] || '',
+            status: values[headers.indexOf('Status')] || 'Waiting',
+            date: values[headers.indexOf('Added Date')] || new Date().toISOString(),
+            verifiedBy: values[headers.indexOf('Student ID')] || null,
+            studentPhone: values[headers.indexOf('Student Phone')] || null,
+            collectedAt: values[headers.indexOf('Collection Date')] || null
+          };
           
-          for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-            
-            const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
-                              .map(v => v.trim().replace(/^"|"$/g, ''));
-            
-            const parcel = {
-              id: Date.now() + i, // Generate new IDs
-              name: values[headers.indexOf('Recipient Name')] || '',
-              parcelID: values[headers.indexOf('Tracking Number')] || '',
-              status: values[headers.indexOf('Status')] || 'Waiting',
-              date: values[headers.indexOf('Added Date')] || new Date().toLocaleString(),
-              verifiedBy: values[headers.indexOf('Student ID')] || null,
-              studentPhone: values[headers.indexOf('Student Phone')] || null,
-              collectedAt: values[headers.indexOf('Collection Date')] || null
-            };
-            
-            newParcels.push(parcel);
-          }
-          
-          parcels = newParcels;
-          allParcels = [...newParcels]; // Update searchable array
-          saveToLocalStorage();
-          filterParcels(currentFilter); // Reapply current filter
-          alert(`Successfully imported ${newParcels.length} parcels`);
-          
-        } catch (error) {
-          alert('Error importing file: ' + error.message);
-          console.error(error);
+          newParcels.push(parcel);
         }
-      };
-      
-      reader.readAsText(file);
-    }
+        
+        parcels = newParcels;
+        allParcels = [...newParcels]; // Update searchable array
+        saveToLocalStorage();
+        filterParcels(currentFilter); // Reapply current filter
+        updateStats();
+        showToast(`Successfully imported ${newParcels.length} parcels`, 'success');
+        
+      } catch (error) {
+        showToast('Error importing file: ' + error.message, 'error');
+        console.error(error);
+      }
+    };
+    
+    reader.readAsText(file);
+  }
 
-    // Save to browser storage
-    function saveToLocalStorage() {
-      localStorage.setItem('parcels', JSON.stringify(parcels));
+  // Show toast notification
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toastNotification');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    toast.className = `toast ${type}`;
+    toastMessage.textContent = message;
+    
+    // Set appropriate icon
+    const icon = toast.querySelector('i');
+    if (type === 'success') {
+      icon.className = 'fas fa-check-circle';
+    } else if (type === 'error') {
+      icon.className = 'fas fa-exclamation-circle';
+    } else if (type === 'warning') {
+      icon.className = 'fas fa-exclamation-triangle';
     }
+    
+    toast.classList.add('show');
+    
+    // Hide after 3 seconds
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
 
-    // Clear form inputs
-    function clearForm() {
-      document.getElementById('customerName').value = '';
-      document.getElementById('parcelID').value = '';
-    }
+  // Save to browser storage
+  function saveToLocalStorage() {
+    localStorage.setItem('parcels', JSON.stringify(parcels));
+  }
 
-    // Render parcel table
-    function renderTable(dataToRender) {
-      const tbody = document.querySelector('#parcelTable tbody');
-      tbody.innerHTML = dataToRender.map(parcel => `
-        <tr>
-          <td>${parcel.name}</td>
-          <td>${parcel.parcelID}</td>
-          <td>
-            <span class="status status-${parcel.status.toLowerCase()}">
-              ${parcel.status}
-              ${parcel.verifiedBy ? `<br><small>ID: ${parcel.verifiedBy}</small>` : ''}
-              ${parcel.studentPhone ? `<br><small>Phone: ${parcel.studentPhone}</small>` : ''}
-              ${parcel.collectedAt ? `<br><small>${parcel.collectedAt}</small>` : ''}
-            </span>
-          </td>
-          <td class="actions">
-            ${parcel.status === 'Waiting' ? 
-              `<button class="action-btn btn-success" onclick="markAsTaken(${parcel.id})">
-                Mark Taken
-              </button>` : ''}
-            ${parcel.status === 'Taken' ? 
-              `<button class="action-btn btn-whatsapp" onclick="shareViaWhatsApp(${parcel.id})">
-                Share Receipt
-              </button>` : ''}
-            <button class="action-btn btn-danger" onclick="deleteParcel(${parcel.id})">
-              Delete
-            </button>
-          </td>
-        </tr>
-      `).join('');
-    }
-  </script>
+  // Clear form inputs
+  function clearForm() {
+    document.getElementById('customerName').value = '';
+    document.getElementById('parcelID').value = '';
+    document.getElementById('customerName').focus();
+  }
+
+  // Render parcel table
+  function renderTable(dataToRender) {
+    const tbody = document.querySelector('#parcelTable tbody');
+    tbody.innerHTML = dataToRender.map(parcel => `
+      <tr>
+        <td>${parcel.name}</td>
+        <td>${parcel.parcelID}</td>
+        <td>${formatDate(parcel.date)}</td>
+        <td>
+          <span class="status status-${parcel.status.toLowerCase()}">
+            ${parcel.status}
+            ${parcel.verifiedBy ? `<br><small>ID: ${parcel.verifiedBy}</small>` : ''}
+            ${parcel.studentPhone ? `<br><small>Phone: ${parcel.studentPhone}</small>` : ''}
+            ${parcel.collectedAt ? `<br><small>${formatDate(parcel.collectedAt)}</small>` : ''}
+          </span>
+        </td>
+        <td class="actions">
+          ${parcel.status === 'Waiting' ? 
+            `<button class="action-btn btn-success" onclick="markAsTaken(${parcel.id})">
+              <i class="fas fa-check"></i> Collect
+            </button>` : ''}
+          ${parcel.status === 'Taken' ? 
+            `<button class="action-btn btn-whatsapp" onclick="shareViaWhatsApp(${parcel.id})">
+              <i class="fab fa-whatsapp"></i> Receipt
+            </button>` : ''}
+          <button class="action-btn btn-danger" onclick="deleteParcel(${parcel.id})">
+            <i class="fas fa-trash"></i> Delete
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+</script>
 </body>
 </html>
