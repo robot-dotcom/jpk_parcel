@@ -25,31 +25,66 @@
     }
     
     body {
-      background-color: #f5f7ff;
+      background-image: url('https://i.pinimg.com/736x/7a/02/ae/7a02aeaeb9ef119bad8d2af23e01745e.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      background-repeat: no-repeat;
       color: var(--dark);
       line-height: 1.6;
       padding: 20px;
+      min-height: 100vh;
     }
     
     .container {
       max-width: 800px;
       margin: 0 auto;
-      background: white;
+      background: rgba(255, 255, 255, 0.92);
       border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
       overflow: hidden;
+      backdrop-filter: blur(5px);
     }
     
     header {
       background: linear-gradient(135deg, var(--primary), var(--secondary));
       color: white;
-      padding: 20px;
+      padding: 15px 20px;
       text-align: center;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
     }
     
-    h1 {
+    header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('https://i.pinimg.com/736x/62/4a/a7/624aa781380d30c0c7345c7a2a0c6a57.jpg') center/cover;
+      opacity: 0.15;
+      z-index: 0;
+    }
+    
+    .logo {
+      height: 40px;
+      width: auto;
+      filter: drop-shadow(1px 1px 3px rgba(0,0,0,0.3));
+      z-index: 1;
+    }
+    
+    header h1 {
+      position: relative;
+      z-index: 1;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
       font-size: 1.8rem;
       font-weight: 500;
+      margin: 0;
     }
     
     .form-container {
@@ -229,6 +264,17 @@
       display: none;
     }
     
+    /* Phone input styling */
+    .phone-input {
+      margin: 15px 0;
+    }
+    
+    .phone-input label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
     @media (max-width: 600px) {
       .form-container {
         flex-direction: column;
@@ -245,13 +291,29 @@
       .data-io-section {
         flex-direction: column;
       }
+      
+      body {
+        padding: 10px;
+        background-attachment: scroll;
+      }
+      
+      header {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+      }
+      
+      .logo {
+        height: 30px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>📦 Parcel Tracker Pro</h1>
+      <img src="1.png" alt="Parcel Tracker Logo" class="logo">
+      <h1>Parcel Tracker Pro</h1>
     </header>
     
     <div class="form-container">
@@ -295,8 +357,18 @@
   <div class="modal" id="verificationModal">
     <div class="modal-content">
       <h3 class="modal-title">Student Verification</h3>
-      <p>Enter student ID to confirm pickup:</p>
-      <input type="text" id="studentIdInput" placeholder="Student ID" required>
+      <p>Please verify student details:</p>
+      
+      <div class="input-group">
+        <label for="studentIdInput">Student ID:</label>
+        <input type="text" id="studentIdInput" placeholder="Enter student ID" required>
+      </div>
+      
+      <div class="input-group phone-input">
+        <label for="studentPhoneInput">Phone Number:</label>
+        <input type="tel" id="studentPhoneInput" placeholder="e.g. 0123456789" required>
+      </div>
+      
       <div class="modal-actions">
         <button onclick="cancelVerification()">Cancel</button>
         <button class="btn-success" onclick="confirmTaken()">Confirm Pickup</button>
@@ -330,6 +402,7 @@
         status: 'Waiting',
         date: new Date().toLocaleString(),
         verifiedBy: null,
+        studentPhone: null,
         collectedAt: null
       });
       
@@ -343,15 +416,23 @@
       currentParcelId = id;
       verificationModal.style.display = 'flex';
       document.getElementById('studentIdInput').value = '';
+      document.getElementById('studentPhoneInput').value = '';
       document.getElementById('studentIdInput').focus();
     }
 
-    // Confirm pickup with student ID
+    // Confirm pickup with student ID and phone
     function confirmTaken() {
       const studentId = document.getElementById('studentIdInput').value.trim();
+      const studentPhone = document.getElementById('studentPhoneInput').value.trim();
       
-      if (!studentId) {
-        alert('Please enter student ID');
+      if (!studentId || !studentPhone) {
+        alert('Please enter both student ID and phone number');
+        return;
+      }
+      
+      // Basic phone number validation
+      if (!/^[\d\s\+\-\(\)]{8,15}$/.test(studentPhone)) {
+        alert('Please enter a valid phone number (8-15 digits)');
         return;
       }
       
@@ -359,6 +440,7 @@
       if (parcel) {
         parcel.status = 'Taken';
         parcel.verifiedBy = studentId;
+        parcel.studentPhone = studentPhone;
         parcel.collectedAt = new Date().toLocaleString();
         
         saveToLocalStorage();
@@ -390,6 +472,7 @@
         'Tracking Number',
         'Status',
         'Student ID',
+        'Student Phone',
         'Collection Date',
         'Added Date'
       ];
@@ -400,6 +483,7 @@
         parcel.parcelID,
         parcel.status,
         parcel.verifiedBy || '',
+        parcel.studentPhone || '',
         parcel.collectedAt || '',
         parcel.date
       ]);
@@ -435,7 +519,6 @@
           const lines = content.split('\n');
           const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
           
-          // Clear current data if import is successful
           const confirmImport = confirm(`Import ${lines.length - 1} records? This will replace current data.`);
           if (!confirmImport) return;
           
@@ -454,6 +537,7 @@
               status: values[headers.indexOf('Status')] || 'Waiting',
               date: values[headers.indexOf('Added Date')] || new Date().toLocaleString(),
               verifiedBy: values[headers.indexOf('Student ID')] || null,
+              studentPhone: values[headers.indexOf('Student Phone')] || null,
               collectedAt: values[headers.indexOf('Collection Date')] || null
             };
             
@@ -496,6 +580,7 @@
             <span class="status status-${parcel.status.toLowerCase()}">
               ${parcel.status}
               ${parcel.verifiedBy ? `<br><small>ID: ${parcel.verifiedBy}</small>` : ''}
+              ${parcel.studentPhone ? `<br><small>Phone: ${parcel.studentPhone}</small>` : ''}
               ${parcel.collectedAt ? `<br><small>${parcel.collectedAt}</small>` : ''}
             </span>
           </td>
